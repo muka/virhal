@@ -1,9 +1,12 @@
 package main
 
 import (
-	"fmt"
+	"errors"
 	"os"
 
+	log "github.com/Sirupsen/logrus"
+	"github.com/muka/virhal/project"
+	"github.com/muka/virhal/project/options"
 	cli "gopkg.in/urfave/cli.v1"
 )
 
@@ -13,55 +16,68 @@ func main() {
 	app.Name = "virhal"
 	app.Usage = "Virtualized Hardware Abstraction Layer CLI tools"
 	app.Version = "1.0.0-alpha1"
+
 	flags := []cli.Flag{
-		cli.IntFlag{
+		cli.BoolFlag{
 			Name:   "debug, d",
 			Usage:  "debug output level",
 			EnvVar: "DEBUG",
 		},
+		cli.StringFlag{
+			Name:   "file, f",
+			Usage:  "configuration file",
+			EnvVar: "CONFIG_FILE",
+		},
 	}
-	app.Flags = flags
 
 	app.Commands = []cli.Command{
 		{
-			Name:    "run",
-			Aliases: []string{},
-			Usage:   "run a container based on label selection",
-			Flags: []cli.Flag{
-				cli.StringFlag{
-					Name:  "filter, f",
-					Usage: "filter for selection",
-					// EnvVar: "FILTER",
-				},
-			},
+			Name:  "start",
+			Usage: "start a project",
+			Flags: flags,
 			Action: func(c *cli.Context) error {
-				fmt.Println("added task: ", c.String("flag"))
-				return nil
+
+				if c.Bool("debug") {
+					log.SetLevel(log.DebugLevel)
+				}
+
+				filepath := c.String("file")
+				if filepath == "" {
+					return errors.New("No file specified")
+				}
+
+				p, err := project.NewProjectFromFile(filepath)
+				if err != nil {
+					return err
+				}
+
+				return p.Start(options.Start{})
 			},
 		},
-		// {
-		// 	Name:    "template",
-		// 	Aliases: []string{"t"},
-		// 	Usage:   "options for task templates",
-		// 	Subcommands: []cli.Command{
-		// 		{
-		// 			Name:  "add",
-		// 			Usage: "add a new template",
-		// 			Action: func(c *cli.Context) error {
-		// 				fmt.Println("new task template: ", c.Args().First())
-		// 				return nil
-		// 			},
-		// 		},
-		// 		{
-		// 			Name:  "remove",
-		// 			Usage: "remove an existing template",
-		// 			Action: func(c *cli.Context) error {
-		// 				fmt.Println("removed task template: ", c.Args().First())
-		// 				return nil
-		// 			},
-		// 		},
-		// 	},
-		// },
+		{
+			Name:    "status",
+			Aliases: []string{"ps"},
+			Usage:   "show status of a project",
+			Flags:   flags,
+			Action: func(c *cli.Context) error {
+
+				if c.Bool("debug") {
+					log.SetLevel(log.DebugLevel)
+				}
+
+				filepath := c.String("file")
+				if filepath == "" {
+					return errors.New("No file specified")
+				}
+
+				p, err := project.NewProjectFromFile(filepath)
+				if err != nil {
+					return err
+				}
+
+				return p.Status(options.Status{})
+			},
+		},
 	}
 
 	app.Run(os.Args)

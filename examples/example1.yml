@@ -1,0 +1,8 @@
+version: "1"
+services:
+    example1:
+        tags:
+            arch: x86
+            type: cloud
+        file: ./webapp.yml
+        mode: compose # or swarm

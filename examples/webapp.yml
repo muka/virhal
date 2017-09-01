@@ -1,0 +1,4 @@
+version: "2"
+services:
+    nginx1:
+        image: nginx
