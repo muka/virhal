@@ -15,7 +15,7 @@ func main() {
 	app := cli.NewApp()
 
 	app.Name = "virhal"
-	app.Usage = "Virtualized Hardware Abstraction Layer CLI tools"
+	app.Usage = "Virtualized Hardware Abstraction Layer"
 	app.Version = "1.0.0-alpha1"
 
 	flags := []cli.Flag{
@@ -94,6 +94,8 @@ func main() {
 				if err != nil {
 					return err
 				}
+
+				log.Info("Agent started")
 
 				return nil
 			},
