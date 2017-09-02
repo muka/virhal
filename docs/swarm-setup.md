@@ -8,12 +8,21 @@ Example commands to setup a swarm for development
 
 #Create manger+nodes
 docker-machine create manager1
+docker-machine create manager2
 docker-machine create node1
 docker-machine create node2
 
 docker-machine ssh manager1
 # Init swarm
-docker swarm init --advertise-addr 192.168.99.100
+docker swarm init --advertise-addr $(ifconfig eth1 | grep "inet addr" | awk '{print $2}' | sed s/addr://)
+
+# Join command for worker
+docker swarm join-token worker | grep "join"
+
+# Join command for manager
+docker swarm join-token worker | grep "join"
+
+
 
 # Join swarm
 docker-machine ssh node1

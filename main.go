@@ -5,6 +5,7 @@ import (
 	"os"
 
 	log "github.com/Sirupsen/logrus"
+	"github.com/muka/virhal/docker"
 	"github.com/muka/virhal/project"
 	"github.com/muka/virhal/project/options"
 	cli "gopkg.in/urfave/cli.v1"
@@ -76,6 +77,25 @@ func main() {
 				}
 
 				return p.Status(options.Status{})
+			},
+		},
+		{
+			Name:  "agent",
+			Usage: "start the agent service",
+			Flags: flags,
+			Action: func(c *cli.Context) error {
+
+				debug := c.Bool("debug")
+				if debug {
+					log.SetLevel(log.DebugLevel)
+				}
+
+				err := docker.WatchEvents()
+				if err != nil {
+					return err
+				}
+
+				return nil
 			},
 		},
 	}
