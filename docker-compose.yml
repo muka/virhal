@@ -3,6 +3,16 @@ version: "3"
 networks:
   virhal_ctl:
     driver: overlay
-    internal: true
 
 services:
+    agent:
+        image: opny/virhal
+        # image: opny/virhal
+        build: .
+        command: /virhal agent --debug
+        volumes:
+            - /var/run/docker.sock:/var/run/docker.sock
+        ports:
+          - "12832:12832"
+        networks:
+            - virhal_ctl

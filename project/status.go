@@ -14,6 +14,7 @@ func (p *Project) Status(opt opts.Status) error {
 
 	errs := make([]error, 0)
 	for _, service := range p.Services {
+		fmt.Printf("Service %s\n", service.Name)
 		err := service.Status(&opt)
 		if err != nil {
 			log.Errorf("Failed to get status of %s: %s", service.Name, err.Error())
@@ -44,6 +45,11 @@ func (s *Service) Status(opt *opts.Status) error {
 	infoset, err := compose.Ps(context.Background(), composeServicesNames...)
 	if err != nil {
 		return err
+	}
+
+	if len(infoset) == 0 {
+		fmt.Println("Not running")
+		return nil
 	}
 
 	fmt.Println("Name\t\t\t\tState")

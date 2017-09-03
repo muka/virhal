@@ -38,7 +38,6 @@ func (s *Service) Start(opt *options.Start) error {
 	}
 
 	err = compose.Up(context.Background(), opts.Up{})
-
 	if err != nil {
 		return err
 	}

@@ -1,6 +1,6 @@
 version: "1"
 services:
-    example1:
+    webapp:
         tags:
             arch: x86
             type: cloud

@@ -42,18 +42,13 @@ func SwarmNodesInspect() ([]swarm.Node, error) {
 }
 
 //SwarmDeployContainer return the available nodes metadata
-func SwarmDeployContainer() ([]swarm.Node, error) {
-	c, err := GetEnvClient()
+func SwarmDeployContainer() error {
+	_, err := GetEnvClient()
 	if err != nil {
-		return nil, err
+		return err
 	}
-	ctx := context.Background()
-	listOpts := types.NodeListOptions{}
-	nodes, err := c.NodeList(ctx, listOpts)
-	if err != nil {
-		return nil, err
-	}
-	return nodes, err
+
+	return nil
 }
 
 // WatchEvents watch for docker events

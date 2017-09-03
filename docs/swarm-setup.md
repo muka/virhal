@@ -52,4 +52,9 @@ docker node update --label-add  virhal.color=white node2
 docker service ps helloworld
 # service state is pending
 
+# create a local registry
+docker service create --name registry --publish 5000:5000 registry:2
+#deploy agent
+docker stack deploy --compose-file docker-compose.yml virhal
+
 ```
