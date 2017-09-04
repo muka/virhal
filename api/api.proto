@@ -1,0 +1,15 @@
+syntax = "proto3";
+package virhal;
+
+message Service {
+    string Name = 1;
+    map<string, string> Tags = 2;
+    string File = 3;
+    string Mode = 4;
+    bytes Content = 5;
+}
+
+message Command {
+    string version = 1;
+    map<string, Service> services = 2;
+}
