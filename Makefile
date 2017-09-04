@@ -20,6 +20,8 @@ SRC=$(shell find . -type f -name '*.go' -not -path "./vendor/*")
 
 .PHONY: deps api build clean install uninstall run docker/build docker/push run-agent
 
+all: deps api/client install
+	@echo "Done"
 deps:
 	go get -u -f ./...
 
@@ -30,16 +32,16 @@ deps:
 	go get -u github.com/go-openapi/runtime
 	go get -u golang.org/x/net/context
 	go get -u golang.org/x/net/context/ctxhttp
-	
+
 api:
 	protoc -I/usr/local/include -I. -I${GOPATH}/src -I${GOPATH}/src/github.com/grpc-ecosystem/grpc-gateway/third_party/googleapis --go_out=google/api/annotations.proto=github.com/grpc-ecosystem/grpc-gateway/third_party/googleapis/google/api,plugins=grpc:. api/api.proto
 	protoc -I/usr/local/include -I. -I${GOPATH}/src -I${GOPATH}/src/github.com/grpc-ecosystem/grpc-gateway/third_party/googleapis --grpc-gateway_out=logtostderr=true:. api/api.proto
 	protoc -I/usr/local/include -I. -I${GOPATH}/src -I${GOPATH}/src/github.com/grpc-ecosystem/grpc-gateway/third_party/googleapis --swagger_out=logtostderr=true:. api/api.proto
 
 api/client: api
-	swagger generate client -f api/api.swagger.json
+	swagger generate client -t ./api -f api/api.swagger.json
 
-build: api/client
+build:
 	ARCH=${ARCH} GOARCH=${GOARCH} GOARM=${GOARM} go build $(LDFLAGS) -o $(TARGET)
 
 clean:
