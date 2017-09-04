@@ -21,8 +21,11 @@ func (s *Service) GetComposeProject() (*prj.Project, error) {
 //GetComposeFileContent read the compose yml file
 func (s *Service) GetComposeFileContent() ([]byte, error) {
 
-	file := s.File
+	if len(s.FileContent) > 0 {
+		return s.FileContent, nil
+	}
 
+	file := s.File
 	if !filepath.IsAbs(file) {
 		file = filepath.Join(s.project.context.WorkDir, file)
 	}
@@ -35,7 +38,9 @@ func (s *Service) GetComposeFileContent() ([]byte, error) {
 	if err != nil {
 		return nil, err
 	}
+
 	s.FileContent = data
+
 	return s.FileContent, nil
 }
 

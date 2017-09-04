@@ -15,8 +15,87 @@ import (
 	"google.golang.org/grpc/reflection"
 )
 
-//Deploy a project to available nodes
-func Deploy(project *project.Project) error {
+const grpcPort = ":50051"
+
+//Start a project on avail nodes
+func Start(project *project.Project) error {
+	return eachNode(func(node swarm.Node) error {
+
+		c, conn, err := getClient(node.Status.Addr)
+		if err != nil {
+			log.Errorf("Cannot get pb client: %s", err.Error())
+			return err
+		}
+		defer conn.Close()
+
+		ctx := context.Background()
+		p, err := createPbProject(project)
+		if err != nil {
+			return err
+		}
+
+		response, err := c.Start(ctx, p)
+		return checkResponse(response, err)
+	})
+}
+
+//Stop a project on avail nodes
+func Stop(project *project.Project) error {
+	return eachNode(func(node swarm.Node) error {
+
+		c, conn, err := getClient(node.Status.Addr)
+		if err != nil {
+			log.Errorf("Cannot get pb client: %s", err.Error())
+			return err
+		}
+		defer conn.Close()
+
+		ctx := context.Background()
+		p, err := createPbProject(project)
+		if err != nil {
+			log.Errorf("Failed to convert to pb model: %s", err.Error())
+			return err
+		}
+
+		response, err := c.Stop(ctx, p)
+		return checkResponse(response, err)
+	})
+}
+
+//Status check status for a project on avail nodes
+func Status(project *project.Project) (string, error) {
+	responses := ""
+	err := eachNode(func(node swarm.Node) error {
+
+		responses += fmt.Sprintf("\nNode %s (%s)\n", node.Description.Hostname, node.Status.Addr)
+		c, conn, err := getClient(node.Status.Addr)
+		if err != nil {
+			log.Errorf("Cannot get pb client: %s", err.Error())
+			return err
+		}
+		defer conn.Close()
+
+		ctx := context.Background()
+		p, err := createPbProject(project)
+		if err != nil {
+			log.Errorf("Failed to convert to pb model: %s", err.Error())
+			return err
+		}
+
+		response, err := c.Status(ctx, p)
+		err = checkResponse(response, err)
+		if err != nil {
+			return err
+		}
+
+		responses += response.GetMessage()
+		return nil
+	})
+
+	return responses, err
+}
+
+func eachNode(fn func(node swarm.Node) error) error {
 
 	nodes, err := docker.SwarmNodesInspect()
 	if err != nil {
@@ -24,7 +103,6 @@ func Deploy(project *project.Project) error {
 	}
 
 	errs := make([]error, 0)
-
 	for _, node := range nodes {
 
 		if node.Spec.Availability != swarm.NodeAvailabilityActive {
@@ -39,44 +117,36 @@ func Deploy(project *project.Project) error {
 
 		log.Debugf("Node %s %s %s", node.Spec.Availability, node.Status.Addr, node.Description.Hostname)
 
-		c, conn, err := getClient(node.Status.Addr)
+		err := fn(node)
 		if err != nil {
 			errs = append(errs, err)
-			log.Errorf("Cannot get pb client: %s", err.Error())
-			continue
 		}
-
-		ctx := context.Background()
-		p, err := createPbProject(project)
-		if err != nil {
-			errs = append(errs, err)
-			log.Errorf("Failed to convert to pb model: %s", err.Error())
-			continue
-		}
-
-		response, err := c.Start(ctx, p)
-		if err != nil {
-			errs = append(errs, err)
-			log.Errorf("Request failed: %s", err.Error())
-		} else {
-			if response.GetCode() >= 400 {
-				log.Errorf("Request response has error: %s", err.Error())
-				errs = append(errs, errors.New("grpc error: "+response.GetMessage()))
-			}
-		}
-
-		conn.Close()
 	}
 
 	if len(errs) > 0 {
-		return fmt.Errorf("Failed to deploy: %s", errs[0].Error())
+		return fmt.Errorf("Failed execution on nodes: %s", errs[0].Error())
+	}
+
+	return nil
+}
+
+func checkResponse(response *pb.Response, err error) error {
+
+	if err != nil {
+		log.Errorf("Request failed: %s", err.Error())
+		return err
+	}
+
+	if response.GetCode() >= 400 {
+		log.Errorf("Request response has error: %s", err.Error())
+		return errors.New("grpc error: " + response.GetMessage())
 	}
 
 	return nil
 }
 
 func getClient(address string) (pb.ProjectServiceClient, *grpc.ClientConn, error) {
-	conn, err := grpc.Dial(address, grpc.WithInsecure())
+	conn, err := grpc.Dial(address+grpcPort, grpc.WithInsecure())
 	if err != nil {
 		return nil, nil, err
 	}
@@ -118,11 +188,12 @@ func createPbProject(project *project.Project) (*pb.Project, error) {
 }
 
 //RunServer start the gRPC server
-func RunServer(port string) error {
+func RunServer() error {
 
-	lis, err := net.Listen("tcp", port)
+	lis, err := net.Listen("tcp", grpcPort)
 	if err != nil {
-		log.Fatalf("failed to listen: %v", err)
+		log.Errorf("Failed to listen %s: %s", grpcPort, err.Error())
+		return err
 	}
 	s := grpc.NewServer()
 	pb.RegisterProjectServiceServer(s, pb.NewProjectService())

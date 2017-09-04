@@ -1,14 +1,12 @@
 package main
 
 import (
-	"errors"
 	"os"
 
 	log "github.com/Sirupsen/logrus"
 	"github.com/muka/virhal/agent"
 	"github.com/muka/virhal/docker"
 	"github.com/muka/virhal/project"
-	"github.com/muka/virhal/project/options"
 	cli "gopkg.in/urfave/cli.v1"
 )
 
@@ -44,16 +42,33 @@ func main() {
 				}
 
 				filepath := c.String("file")
-				if filepath == "" {
-					return errors.New("No file specified")
-				}
-
 				p, err := project.NewProjectFromFile(filepath)
 				if err != nil {
+					log.Errorf("Failed to load project: %s", err.Error())
 					return err
 				}
 
-				return p.Start(options.Start{})
+				return agent.Start(p)
+			},
+		},
+		{
+			Name:  "stop",
+			Usage: "stop a project",
+			Flags: flags,
+			Action: func(c *cli.Context) error {
+
+				if c.Bool("debug") {
+					log.SetLevel(log.DebugLevel)
+				}
+
+				filepath := c.String("file")
+				p, err := project.NewProjectFromFile(filepath)
+				if err != nil {
+					log.Errorf("Failed to load project: %s", err.Error())
+					return err
+				}
+
+				return agent.Stop(p)
 			},
 		},
 		{
@@ -68,29 +83,26 @@ func main() {
 				}
 
 				filepath := c.String("file")
-				if filepath == "" {
-					return errors.New("No file specified")
-				}
-
 				p, err := project.NewProjectFromFile(filepath)
 				if err != nil {
+					log.Errorf("Failed to load project: %s", err.Error())
 					return err
 				}
 
-				return p.Status(options.Status{})
+				res, err := agent.Status(p)
+
+				if res != "" {
+					log.Println(res)
+					return nil
+				}
+
+				return err
 			},
 		},
 		{
 			Name:  "agent",
 			Usage: "start the agent service",
-			Flags: append(flags,
-				cli.StringFlag{
-					Name:   "port, p",
-					Usage:  "port to listen for ",
-					EnvVar: "GRPC_PORT",
-					Value:  ":50051",
-				},
-			),
+			Flags: flags,
 			Action: func(c *cli.Context) error {
 
 				debug := c.Bool("debug")
@@ -98,17 +110,24 @@ func main() {
 					log.SetLevel(log.DebugLevel)
 				}
 
-				log.Info("Agent start")
+				go func() {
+					err := agent.RunServer()
+					if err != nil {
+						log.Error("Failed to start grpc server")
+						panic(err)
+					}
+				}()
 
-				agent.RunServer(c.String("port"))
+				go func() {
+					err := docker.WatchEvents()
+					if err != nil {
+						log.Error("Failed to listen for events")
+						panic(err)
+					}
+				}()
 
-				err := docker.WatchEvents()
-				if err != nil {
-					return err
-				}
-
-				log.Info("Agent exit")
-				return nil
+				log.Info("Agent started, waiting for events..")
+				select {}
 			},
 		},
 	}

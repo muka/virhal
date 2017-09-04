@@ -7,7 +7,7 @@ import (
 	"github.com/muka/virhal/project"
 )
 
-func TestDeploy(t *testing.T) {
+func TestStart(t *testing.T) {
 
 	log.SetLevel(log.DebugLevel)
 
@@ -19,7 +19,20 @@ func TestDeploy(t *testing.T) {
 		t.FailNow()
 	}
 
-	err = Deploy(project)
+	err = Start(project)
+	if err != nil {
+		t.Fatalf(err.Error())
+		t.FailNow()
+	}
+
+	status, err = Status(project)
+	if err != nil {
+		t.Fatalf(err.Error())
+		t.FailNow()
+	}
+	log.Debugf("Status: %s", status)
+
+	err = Stop(project)
 	if err != nil {
 		t.Fatalf(err.Error())
 		t.FailNow()

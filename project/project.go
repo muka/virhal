@@ -2,10 +2,12 @@ package project
 
 import (
 	"io/ioutil"
+	"os"
 	"path/filepath"
 	"regexp"
 	"strings"
 
+	log "github.com/Sirupsen/logrus"
 	compose "github.com/docker/libcompose/project"
 
 	"gopkg.in/yaml.v2"
@@ -13,6 +15,15 @@ import (
 
 //VERSION default project version
 const VERSION = "1"
+
+const (
+	//DeplyomentModeCompose compose deployment mode
+	DeplyomentModeCompose = "compose"
+	//DeplyomentModeSwarm swarm deployment mode
+	DeplyomentModeSwarm = "swarm"
+	//DeplyomentModeFunction function deployment mode
+	DeplyomentModeFunction = "function"
+)
 
 //YamlService yaml model
 type YamlService struct {
@@ -58,7 +69,7 @@ type Project struct {
 	context  *Context
 	Name     string
 	Version  string
-	Services map[string]Service
+	Services map[string]*Service
 }
 
 //NewProject initialize a new project
@@ -66,7 +77,18 @@ func NewProject() *Project {
 	p := Project{
 		context:  &Context{},
 		Version:  VERSION,
-		Services: make(map[string]Service),
+		Services: make(map[string]*Service),
+	}
+	return &p
+}
+
+//NewService initialize a new service
+func NewService(project *Project) *Service {
+	p := Service{
+		project: project,
+		Context: &Context{},
+		Mode:    "compose",
+		Tags:    make(map[string]Tag),
 	}
 	return &p
 }
@@ -74,6 +96,15 @@ func NewProject() *Project {
 //NewProjectFromFile initialize a new project from a configuration file
 func NewProjectFromFile(file string) (*Project, error) {
 
+	if file == "" {
+		dir, err := os.Getwd()
+		if err != nil {
+			return nil, err
+		}
+		file = dir + "/virhal.yml"
+	}
+
+	log.Debugf("Loading %s", file)
 	data, err := ioutil.ReadFile(file)
 	if err != nil {
 		return nil, err
@@ -127,19 +158,20 @@ func mergeYamlProject(raw *YamlProject, p *Project) {
 	for serviceName, rawService := range raw.Services {
 
 		s := Service{
-			Context: new(Context),
-			project: p,
-			Name:    serviceName,
-			File:    rawService.File,
-			Mode:    rawService.Mode,
-			Tags:    make(map[string]Tag),
+			Context:     new(Context),
+			project:     p,
+			Name:        serviceName,
+			File:        rawService.File,
+			Mode:        rawService.Mode,
+			Tags:        make(map[string]Tag),
+			FileContent: make([]byte, 0),
 		}
 
 		for tagname, tagval := range rawService.Tags {
 			s.Tags[tagname] = Tag{tagname, tagval}
 		}
 
-		p.Services[serviceName] = s
+		p.Services[serviceName] = &s
 	}
 
 }

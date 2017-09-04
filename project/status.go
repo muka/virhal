@@ -4,37 +4,41 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"strings"
 
 	log "github.com/Sirupsen/logrus"
 	opts "github.com/muka/virhal/project/options"
 )
 
 //Status of a project
-func (p *Project) Status(opt opts.Status) error {
+func (p *Project) Status(opt opts.Status) (string, error) {
 
+	responses := make([]string, 0)
 	errs := make([]error, 0)
 	for _, service := range p.Services {
 		fmt.Printf("Service %s\n", service.Name)
-		err := service.Status(&opt)
+		res, err := service.Status(&opt)
 		if err != nil {
 			log.Errorf("Failed to get status of %s: %s", service.Name, err.Error())
 			errs = append(errs, err)
+		} else {
+			responses = append(responses, res)
 		}
 	}
 
 	if len(errs) > 0 {
-		return errors.New("Failed to get status")
+		return "", errors.New("Failed to get status")
 	}
 
-	return nil
+	return strings.Join(responses, ""), nil
 }
 
 //Status of a service
-func (s *Service) Status(opt *opts.Status) error {
+func (s *Service) Status(opt *opts.Status) (string, error) {
 
 	compose, err := s.GetComposeProject()
 	if err != nil {
-		return err
+		return "", err
 	}
 
 	composeServicesNames := make([]string, 0)
@@ -44,18 +48,19 @@ func (s *Service) Status(opt *opts.Status) error {
 
 	infoset, err := compose.Ps(context.Background(), composeServicesNames...)
 	if err != nil {
-		return err
+		return "", err
 	}
 
 	if len(infoset) == 0 {
 		fmt.Println("Not running")
-		return nil
+		return "", nil
 	}
 
-	fmt.Println("Name\t\t\t\tState")
+	res := "Name\t\t\t\tState\n"
 	for _, info := range infoset {
-		fmt.Printf("%s\t\t%s\n", info["Name"], info["State"])
+		res += fmt.Sprintf("%s\t\t%s\n", info["Name"], info["State"])
 	}
 
-	return nil
+	log.Print(res)
+	return res, nil
 }
