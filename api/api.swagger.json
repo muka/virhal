@@ -115,7 +115,7 @@
     "virhalResponse": {
       "type": "object",
       "properties": {
-        "status": {
+        "code": {
           "type": "integer",
           "format": "int32"
         },
