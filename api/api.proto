@@ -1,15 +1,47 @@
 syntax = "proto3";
 package virhal;
 
+import "google/api/annotations.proto";
+
+option go_package = "api";
+
 message Service {
     string Name = 1;
     map<string, string> Tags = 2;
-    string File = 3;
+    bytes File = 3;
     string Mode = 4;
-    bytes Content = 5;
 }
 
-message Command {
-    string version = 1;
-    map<string, Service> services = 2;
+message Project {
+    string Name = 1;
+    string Version = 2;
+    map<string, Service> services = 3;
+}
+
+message Response {
+    int32 status = 1;
+    string message = 2;
+}
+
+service ProjectService {
+
+	rpc Start(Project) returns (Response) {
+		option (google.api.http) = {
+			post: "/v1/project"
+			body: "*"
+		};
+	}
+
+	rpc Status(Project) returns (Response) {
+		option (google.api.http) = {
+			get: "/v1/project/{Name}"
+		};
+	}
+
+	rpc Stop(Project) returns (Response) {
+		option (google.api.http) = {
+			delete: "/v1/project/{Name}"
+		};
+	}
+
 }
