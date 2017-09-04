@@ -4,6 +4,7 @@ import (
 	"io/ioutil"
 	"path/filepath"
 
+	log "github.com/Sirupsen/logrus"
 	"github.com/docker/libcompose/docker"
 	"github.com/docker/libcompose/docker/ctx"
 	prj "github.com/docker/libcompose/project"
@@ -17,8 +18,8 @@ func (s *Service) GetComposeProject() (*prj.Project, error) {
 	return s.composeProject, nil
 }
 
-//LoadComposeFile read a compose yml file project
-func (s *Service) LoadComposeFile() (*prj.Project, error) {
+//GetComposeFileContent read the compose yml file
+func (s *Service) GetComposeFileContent() ([]byte, error) {
 
 	file := s.File
 
@@ -26,7 +27,22 @@ func (s *Service) LoadComposeFile() (*prj.Project, error) {
 		file = filepath.Join(s.project.context.WorkDir, file)
 	}
 
-	data, err := ioutil.ReadFile(file)
+	s.Context.FullPath = file
+	s.Context.WorkDir = filepath.Dir(file)
+
+	log.Debugf("Loading compose file %s", s.Context.FullPath)
+	data, err := ioutil.ReadFile(s.Context.FullPath)
+	if err != nil {
+		return nil, err
+	}
+	s.FileContent = data
+	return s.FileContent, nil
+}
+
+//LoadComposeFile read a compose yml file project
+func (s *Service) LoadComposeFile() (*prj.Project, error) {
+
+	data, err := s.GetComposeFileContent()
 	if err != nil {
 		return nil, err
 	}

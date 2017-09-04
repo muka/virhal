@@ -8,7 +8,8 @@ import (
 
 type projectService struct{}
 
-func newProjectService() ProjectServiceServer {
+//NewProjectService create a new project handler server
+func NewProjectService() ProjectServiceServer {
 	return new(projectService)
 }
 

@@ -6,11 +6,23 @@ import (
 
 	log "github.com/Sirupsen/logrus"
 	"github.com/docker/docker/api/types"
+	"github.com/docker/docker/api/types/events"
 	"github.com/docker/docker/api/types/swarm"
 	"github.com/docker/docker/client"
+	"github.com/muka/virhal/emitter"
 )
 
 var dockerClient *client.Client
+
+//Event wrapper event for emitter
+type Event struct {
+	Message events.Message
+}
+
+//GetRaw return message as interface
+func (ev *Event) GetRaw() interface{} {
+	return ev.Message
+}
 
 //GetEnvClient return the environment client instance
 func GetEnvClient() (*client.Client, error) {
@@ -66,7 +78,7 @@ func WatchEvents() error {
 		select {
 		case msg := <-msgChan:
 			log.Debugf("Emitting event %s", msg.Type)
-			GetEmitter().Emit(msg.Type, Event{msg})
+			emitter.GetEmitter().Emit(msg.Type, Event{msg})
 		case err := <-errChan:
 			if err != nil {
 				fmt.Printf("got error %v\n", err.Error())

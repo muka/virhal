@@ -5,6 +5,7 @@ import (
 	"os"
 
 	log "github.com/Sirupsen/logrus"
+	"github.com/muka/virhal/agent"
 	"github.com/muka/virhal/docker"
 	"github.com/muka/virhal/project"
 	"github.com/muka/virhal/project/options"
@@ -58,7 +59,7 @@ func main() {
 		{
 			Name:    "status",
 			Aliases: []string{"ps"},
-			Usage:   "show status of a project",
+			Usage:   "Show status of a project",
 			Flags:   flags,
 			Action: func(c *cli.Context) error {
 
@@ -82,7 +83,14 @@ func main() {
 		{
 			Name:  "agent",
 			Usage: "start the agent service",
-			Flags: flags,
+			Flags: append(flags,
+				cli.StringFlag{
+					Name:   "port, p",
+					Usage:  "port to listen for ",
+					EnvVar: "GRPC_PORT",
+					Value:  ":50051",
+				},
+			),
 			Action: func(c *cli.Context) error {
 
 				debug := c.Bool("debug")
@@ -90,13 +98,16 @@ func main() {
 					log.SetLevel(log.DebugLevel)
 				}
 
+				log.Info("Agent start")
+
+				agent.RunServer(c.String("port"))
+
 				err := docker.WatchEvents()
 				if err != nil {
 					return err
 				}
 
-				log.Info("Agent started")
-
+				log.Info("Agent exit")
 				return nil
 			},
 		},

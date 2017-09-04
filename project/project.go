@@ -36,19 +36,21 @@ type Tag struct {
 
 //Service definition
 type Service struct {
+	Context        *Context
 	project        *Project
 	composeProject *compose.Project
 
-	Name string
-	Tags map[string]Tag
-	File string
-	Mode string
+	Name        string
+	Tags        map[string]Tag
+	File        string
+	FileContent []byte
+	Mode        string
 }
 
 //Context definition
 type Context struct {
-	WorkDir    string
-	ConfigFile string
+	WorkDir  string
+	FullPath string
 }
 
 //Project definition
@@ -83,7 +85,7 @@ func NewProjectFromFile(file string) (*Project, error) {
 		return nil, err
 	}
 
-	p.context.ConfigFile = configFilePath
+	p.context.FullPath = configFilePath
 	p.context.WorkDir = filepath.Dir(configFilePath)
 
 	if p.Name == "" {
@@ -125,6 +127,7 @@ func mergeYamlProject(raw *YamlProject, p *Project) {
 	for serviceName, rawService := range raw.Services {
 
 		s := Service{
+			Context: new(Context),
 			project: p,
 			Name:    serviceName,
 			File:    rawService.File,
