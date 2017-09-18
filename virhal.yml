@@ -4,5 +4,14 @@ services:
         tags:
             arch: x86
             type: cloud
+        mode: compose # or container, swarm, function
         file: ./examples/webapp.yml
-        mode: compose # or swarm
+    api1:
+        tags:
+            arch: armhf
+            ble: 1
+        mode: container
+        #format is the same as per compose `service` definition
+        # file: ./examples/container.yml
+        service:
+            image: nginx

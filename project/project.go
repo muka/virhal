@@ -1,6 +1,7 @@
 package project
 
 import (
+	"fmt"
 	"io/ioutil"
 	"os"
 	"path/filepath"
@@ -13,6 +14,8 @@ import (
 	"gopkg.in/yaml.v2"
 )
 
+const composeFileContent = "version: \"2\"\nservices:\n  %s:\n    %s"
+
 //VERSION default project version
 const VERSION = "1"
 
@@ -23,13 +26,16 @@ const (
 	DeplyomentModeSwarm = "swarm"
 	//DeplyomentModeFunction function deployment mode
 	DeplyomentModeFunction = "function"
+	//DeplyomentModeContainer single container deployment mode
+	DeplyomentModeContainer = "container"
 )
 
 //YamlService yaml model
 type YamlService struct {
-	Tags map[string]string `yaml:"tags"`
-	File string            `yaml:"file"`
-	Mode string            `yaml:"mode"`
+	Tags    map[string]string      `yaml:"tags"`
+	File    string                 `yaml:"file"`
+	Mode    string                 `yaml:"mode"`
+	Service map[string]interface{} `yaml:"service"`
 }
 
 //YamlProject yaml model
@@ -87,7 +93,7 @@ func NewService(project *Project) *Service {
 	p := Service{
 		project: project,
 		Context: &Context{},
-		Mode:    "compose",
+		Mode:    DeplyomentModeCompose,
 		Tags:    make(map[string]Tag),
 	}
 	return &p
@@ -126,6 +132,7 @@ func NewProjectFromFile(file string) (*Project, error) {
 		bname = re.ReplaceAllString(bname, "")
 		p.Name = bname
 	}
+	log.Debugf("Project name: %s", p.Name)
 
 	err = p.Parse(data)
 	if err != nil {
@@ -144,12 +151,15 @@ func (p *Project) Parse(source []byte) error {
 		return err
 	}
 
-	mergeYamlProject(&yml, p)
+	err = mergeYamlProject(&yml, p)
+	if err != nil {
+		return err
+	}
 
 	return nil
 }
 
-func mergeYamlProject(raw *YamlProject, p *Project) {
+func mergeYamlProject(raw *YamlProject, p *Project) error {
 
 	if raw.Version != "" {
 		p.Version = raw.Version
@@ -157,14 +167,66 @@ func mergeYamlProject(raw *YamlProject, p *Project) {
 
 	for serviceName, rawService := range raw.Services {
 
+		deployMode := rawService.Mode
+		filePath := rawService.File
+		fileContent := make([]byte, 0)
+
+		if rawService.Mode == DeplyomentModeContainer {
+
+			if rawService.File == "" && len(rawService.Service) == 0 {
+				return fmt.Errorf("Service %s should have a `file` or `service` field", serviceName)
+			}
+
+			deployMode = DeplyomentModeCompose
+
+			//file reference, load content
+			if rawService.File != "" {
+				content, err := ioutil.ReadFile(rawService.File)
+				if err != nil {
+					log.Errorf("Failed to read file %s", rawService.File)
+					return err
+				}
+
+				err = yaml.Unmarshal(content, &rawService.Service)
+				if err != nil {
+					return err
+				}
+
+			}
+
+			//service description, transform to docker-compose file format with single service
+			if len(rawService.Service) != 0 {
+
+				serviceContent, err := yaml.Marshal(rawService.Service)
+				if err != nil {
+					return err
+				}
+
+				fileName := strings.Join([]string{p.Name, serviceName}, "-") + ".yml"
+				filePath = filepath.Join(os.TempDir(), fileName)
+				fileContent = []byte(fmt.Sprintf(
+					composeFileContent,
+					serviceName,
+					serviceContent,
+				))
+
+				log.Debugf("Storing tmp compose file to %s", filePath)
+				err = ioutil.WriteFile(filePath, fileContent, 0644)
+				if err != nil {
+					log.Errorf("Failed to store tmp file %s", filePath)
+					return err
+				}
+			}
+		}
+
 		s := Service{
 			Context:     new(Context),
 			project:     p,
 			Name:        serviceName,
-			File:        rawService.File,
-			Mode:        rawService.Mode,
+			File:        filePath,
+			Mode:        deployMode,
 			Tags:        make(map[string]Tag),
-			FileContent: make([]byte, 0),
+			FileContent: fileContent,
 		}
 
 		for tagname, tagval := range rawService.Tags {
@@ -174,4 +236,5 @@ func mergeYamlProject(raw *YamlProject, p *Project) {
 		p.Services[serviceName] = &s
 	}
 
+	return nil
 }
