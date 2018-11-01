@@ -13,4 +13,3 @@ A set of tools to manage distributed IoT applications with docker
 
 MIT License
 
-Copyright (c) 2017 Luca Capra lcapra@fbk.eu
